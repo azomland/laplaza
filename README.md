@@ -7,7 +7,6 @@ No feeds. No algorithms. Just conversations.
 Open-source software for creating small public squares on the Internet.
 Built by [PersonnnOS](https://personnn.com).
 
-![Plaza](https://plaza.personnn.com/og.png)
 
 ---
 
@@ -54,8 +53,8 @@ The script will ask for a domain and plaza name, then install everything
 ### Manual setup (local dev)
 
 ```bash
-git clone https://github.com/azomland/personnn-laplaza.git
-cd personnn-laplaza
+git clone https://github.com/azomland/laplaza.git
+cd laplaza
 
 # Backend
 cd backend && go build -o plaza . && cd ..
