@@ -1,0 +1,306 @@
+---
+interface Props {
+  title?: string
+}
+
+const { title = 'Plaza' } = Astro.props
+---
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{title}</title>
+  <meta name="plaza" content="true">
+  <meta name="plaza-version" content="1">
+  <meta name="description" content="Una plaza pública para conversar. Sin algoritmos. Personas reales.">
+  <link rel="well-known" href="/.well-known/plaza">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Plaza",
+    "applicationCategory": "Communication",
+    "description": "Una plaza pública para conversar en tiempo real. Sin algoritmos. Sin seguidores.",
+    "browserRequirements": "Requires WebSocket",
+    "featureList": "Conversaciones en tiempo real, bancas temáticas, acompañantes de IA"
+  }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..600;1,9..144,300..400&display=swap" rel="stylesheet">
+  <style is:global>
+    :root {
+      --green-900: #0e3220;
+      --green-700: #1a5c3d;
+      --green-500: #28855c;
+      --green-100: #c8e8d4;
+
+      --wood: #a87548;
+      --wood-light: #ead8c8;
+      --wood-dark: #6e4e2e;
+
+      --stone: #f1ece3;
+      --stone-light: #f8f5f0;
+      --stone-dark: #d8d0c5;
+
+      --amber: #b87c1a;
+
+      --text: #191410;
+      --text-muted: #78706a;
+      --text-light: #aba39a;
+
+      --white: #ffffff;
+      --shadow: 0 2px 12px rgba(0,0,0,0.06);
+      --shadow-hover: 0 6px 24px rgba(0,0,0,0.10);
+      --radius: 14px;
+      --radius-sm: 8px;
+
+      --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+      --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-mono: ui-monospace, 'SF Mono', monospace;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { font-size: 16px; -webkit-font-smoothing: antialiased; }
+    body {
+      font-family: var(--font-body);
+      background: var(--stone);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      line-height: 1.6;
+    }
+    a {
+      color: var(--green-700);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    a:hover { color: var(--green-500); }
+
+    ::selection {
+      background: var(--green-100);
+      color: var(--green-900);
+    }
+
+    .container {
+      width: 100%;
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 0 1.25rem;
+    }
+
+    .page-wrap {
+      flex: 1;
+      width: 100%;
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 0 1.25rem;
+    }
+
+    nav {
+      padding: 1.25rem 0;
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      border-bottom: 1px solid var(--stone-dark);
+      margin-bottom: 2rem;
+    }
+    .nav-mark {
+      width: 30px;
+      height: 30px;
+      background: var(--green-900);
+      border-radius: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.95rem;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    nav .logo {
+      font-family: var(--font-display);
+      font-size: 1.15rem;
+      font-weight: 500;
+      font-variation-settings: 'opsz' 16;
+      color: var(--green-900);
+      letter-spacing: -0.01em;
+    }
+    nav .logo:hover { text-decoration: none; color: var(--green-700); }
+    nav .spacer { flex: 1; }
+    nav .gh-link {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-size: 0.75rem;
+      color: var(--text-light);
+    }
+    nav .gh-link:hover { color: var(--text-muted); text-decoration: none; }
+    nav .gh-link svg { width: 14px; height: 14px; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+      padding: 0.65rem 1.4rem;
+      background: var(--green-700);
+      color: var(--white);
+      border: none;
+      border-radius: var(--radius-sm);
+      font-family: var(--font-body);
+      font-size: 0.875rem;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+      line-height: 1;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.14);
+      -webkit-font-smoothing: antialiased;
+    }
+    .btn:hover { background: var(--green-500); transform: translateY(-1px); box-shadow: var(--shadow); }
+    .btn:active { transform: translateY(0); box-shadow: none; }
+    .btn:focus-visible {
+      outline: 2px solid var(--green-500);
+      outline-offset: 2px;
+    }
+    .btn-secondary {
+      background: var(--white);
+      color: var(--text-muted);
+      border: 1px solid var(--stone-dark);
+      box-shadow: none;
+    }
+    .btn-secondary:hover {
+      background: var(--stone-light);
+      color: var(--green-900);
+      border-color: var(--wood);
+      box-shadow: none;
+    }
+
+    input, textarea {
+      width: 100%;
+      padding: 0.7rem 0.9rem;
+      border: 1px solid var(--stone-dark);
+      border-radius: var(--radius-sm);
+      font-family: var(--font-body);
+      font-size: 0.95rem;
+      background: var(--white);
+      color: var(--text);
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    input:focus, textarea:focus {
+      outline: none;
+      border-color: var(--green-500);
+      box-shadow: 0 0 0 3px rgba(40, 133, 92, 0.12);
+    }
+
+    footer {
+      margin-top: 3rem;
+      padding: 2rem 0;
+      text-align: center;
+      border-top: 1px solid var(--stone-dark);
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      line-height: 1.8;
+    }
+    footer .strong { font-weight: 600; color: var(--green-900); }
+    footer .manifesto {
+      max-width: 380px;
+      margin: 0.75rem auto 0;
+      font-family: var(--font-display);
+      font-style: italic;
+      font-variation-settings: 'opsz' 12;
+      font-size: 0.78rem;
+      color: var(--text-light);
+      line-height: 1.65;
+    }
+
+    .toast-container {
+      position: fixed;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 999;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      align-items: center;
+      pointer-events: none;
+    }
+    .toast {
+      padding: 0.6rem 1.2rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      font-weight: 500;
+      background: var(--green-900);
+      color: white;
+      box-shadow: var(--shadow-hover);
+      animation: toast-in 0.25s ease-out both;
+      pointer-events: auto;
+      max-width: 90vw;
+      text-align: center;
+    }
+    .toast-error { background: #991b1b; }
+    .toast-leave { animation: toast-out 0.2s ease-in both; }
+    @keyframes toast-in {
+      from { opacity: 0; transform: translateY(12px) scale(0.95); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes toast-out {
+      from { opacity: 1; transform: translateY(0); }
+      to { opacity: 0; transform: translateY(-8px); }
+    }
+
+    @media (max-width: 520px) {
+      .page-wrap { padding: 0 1rem; }
+      nav { padding: 1rem 0; margin-bottom: 1.5rem; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-wrap">
+    <nav>
+      <div class="nav-mark">🌳</div>
+      <a href="/" class="logo">Plaza</a>
+      <span class="spacer"></span>
+      <a href="https://github.com/azomland/personnn-laplaza" class="gh-link" target="_blank" rel="noopener">
+        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        GitHub
+      </a>
+    </nav>
+    <slot />
+  </div>
+  <footer>
+    <div>
+      Un proyecto de <a href="https://personnn.com" target="_blank" rel="noopener" class="strong">PersonnnOS</a>
+      &mdash; <a href="https://github.com/azomland/personnn-laplaza" target="_blank" rel="noopener">Open source</a>
+    </div>
+    <div class="manifesto">
+      🌳 This Plaza was created with Plaza.<br>
+      You can create yours too.
+    </div>
+  </footer>
+  <div id="toastContainer" class="toast-container"></div>
+  <script>
+    window.showToast = function(message, type) {
+      const container = document.getElementById('toastContainer')
+      const el = document.createElement('div')
+      el.className = 'toast' + (type === 'error' ? ' toast-error' : '')
+      el.textContent = message
+      container.appendChild(el)
+      setTimeout(() => {
+        el.classList.add('toast-leave')
+        setTimeout(() => el.remove(), 200)
+      }, 3000)
+    }
+  </script>
+</body>
+</html>

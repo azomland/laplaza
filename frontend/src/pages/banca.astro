@@ -1,0 +1,551 @@
+---
+import Base from '../layouts/Base.astro'
+---
+
+<Base title="Plaza — banca">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Conversation",
+    "name": "Banca en Plaza",
+    "description": "Una conversación en tiempo real en una plaza pública."
+  }
+  </script>
+  <main class="chat-page">
+    <div id="bancaHeader" class="chat-header">
+      <a href="/plaza" class="chat-back">← Bancas</a>
+      <div class="chat-header-info">
+        <h2 id="bancaTitle" class="chat-title">Cargando...</h2>
+        <span class="chat-meta">
+          <span id="bancaUsers" class="chat-users"></span>
+          <span id="connStatus" class="conn-status"></span>
+        </span>
+      </div>
+      <div class="chat-header-actions">
+        <button id="inviteBtn" class="btn btn-sm" title="Invitar acompañante">+Acompañante</button>
+      </div>
+      <span id="connDot" class="conn-dot"></span>
+    </div>
+
+    <div id="invitePanel" class="invite-panel" style="display:none">
+      <div class="invite-panel-inner">
+        <p class="invite-label">Invitar acompañante</p>
+        <div class="invite-row">
+          <input id="agentNameInput" type="text" value="Eco" placeholder="Nombre" maxlength="24" autocomplete="off">
+          <button id="inviteAgentBtn" class="btn btn-sm" data-backend="echo">Echo</button>
+        </div>
+        <p class="invite-hint">Responde repitiendo el último mensaje. Útil para probar.</p>
+      </div>
+    </div>
+
+    <div id="chatJoin" class="chat-join">
+      <p class="chat-join-label">¿Con qué nombre te sientas?</p>
+      <div class="chat-join-row">
+        <input id="usernameInput" type="text" placeholder="Anónimo" maxlength="24" autocomplete="off">
+        <button id="joinBtn" class="btn">Sentarse</button>
+      </div>
+    </div>
+
+    <div id="messages" class="chat-messages">
+      <div class="chat-connecting">
+        <span class="dot-pulse"></span>
+        Conectando...
+      </div>
+    </div>
+
+    <div id="typingIndicator" class="typing-indicator"></div>
+
+    <div id="chatInput" class="chat-input-area">
+      <input id="msgInput" type="text" placeholder="Escribe algo..." autocomplete="off">
+      <button id="sendBtn" class="btn send-btn" title="Enviar">→</button>
+    </div>
+  </main>
+</Base>
+
+<script>
+import { fetchJSON, connectWS } from '../lib/api.ts'
+
+const params = new URLSearchParams(window.location.search)
+const bancaId = params.get('id')
+if (!bancaId) { window.location.href = '/plaza' }
+
+let username = ''
+let ws = null
+let reconnectTimer = null
+let reconnectAttempt = 0
+const MAX_RECONNECT_DELAY = 30000
+let intentionalClose = false
+let typingTimer = null
+let lastTypingSent = 0
+
+const titleEl = document.getElementById('bancaTitle')
+const usersEl = document.getElementById('bancaUsers')
+const connDot = document.getElementById('connDot')
+const connStatus = document.getElementById('connStatus')
+const messagesEl = document.getElementById('messages')
+const msgInput = document.getElementById('msgInput')
+const sendBtn = document.getElementById('sendBtn')
+const usernameInput = document.getElementById('usernameInput')
+const joinBtn = document.getElementById('joinBtn')
+const chatJoin = document.getElementById('chatJoin')
+const chatInput = document.getElementById('chatInput')
+const typingEl = document.getElementById('typingIndicator')
+const inviteBtn = document.getElementById('inviteBtn')
+const invitePanel = document.getElementById('invitePanel')
+const agentNameInput = document.getElementById('agentNameInput')
+const inviteAgentBtn = document.getElementById('inviteAgentBtn')
+
+function setConn(state) {
+  connDot.className = 'conn-dot conn-' + state
+  connStatus.textContent = state === 'connected' ? 'conectado' : state === 'connecting' ? 'conectando...' : 'desconectado'
+}
+
+function scrollBottom() {
+  messagesEl.scrollTop = messagesEl.scrollHeight
+}
+
+const saved = localStorage.getItem('plaza_username')
+if (saved) { usernameInput.value = saved }
+
+joinBtn.onclick = () => {
+  username = usernameInput.value.trim() || 'Anónimo'
+  localStorage.setItem('plaza_username', username)
+  chatJoin.style.display = 'none'
+  messagesEl.innerHTML = '<div class="chat-connecting"><span class="dot-pulse"></span> Conectando...</div>'
+  msgInput.focus()
+  connect()
+}
+
+joinBtn.onkeydown = (e) => {
+  if (e.key === 'Enter' && joinBtn === document.activeElement) joinBtn.click()
+}
+usernameInput.onkeydown = (e) => {
+  if (e.key === 'Enter') joinBtn.click()
+}
+
+fetchJSON(`/api/bancas/${bancaId}`).then(b => {
+  titleEl.textContent = b.title
+}).catch(() => {})
+
+function connect() {
+  intentionalClose = false
+  setConn('connecting')
+  ws = connectWS(bancaId)
+
+  ws.onopen = () => {
+    connected()
+  }
+
+  ws.onmessage = (e) => {
+    const msg = JSON.parse(e.data)
+    if (msg.type === 'welcome') { return }
+    if (msg.type === 'history') {
+      if (Array.isArray(msg.payload) && msg.payload.length > 0) {
+        messagesEl.innerHTML = ''
+        msg.payload.forEach(m => appendMessage(m))
+      }
+      return
+    }
+    if (msg.type === 'message') {
+      messagesEl.querySelector('.chat-empty')?.remove()
+      appendMessage(msg.payload, msg.payload.username === username)
+    }
+    if (msg.type === 'system') {
+      appendSystem(msg.payload.text)
+      return
+    }
+    if (msg.type === 'typing') {
+      showTyping(msg.payload)
+    }
+  }
+
+  ws.onclose = () => {
+    disconnected()
+  }
+}
+
+function connected() {
+  reconnectAttempt = 0
+  setConn('connected')
+  const wasEmpty = messagesEl.querySelector('.chat-empty, .chat-connecting')
+  messagesEl.innerHTML = ''
+  if (wasEmpty) {
+    const p = document.createElement('p')
+    p.className = 'chat-empty'
+    p.textContent = 'Sentado. Esperando conversación...'
+    messagesEl.appendChild(p)
+  }
+  ws.send(JSON.stringify({ type: 'set_username', payload: { username } }))
+  chatInput.style.display = 'flex'
+}
+
+function disconnected() {
+  setConn('disconnected')
+  chatInput.style.display = 'none'
+  if (intentionalClose) return
+  messagesEl.querySelector('.chat-empty')?.remove()
+  scheduleReconnect()
+}
+
+function scheduleReconnect() {
+  const delay = Math.min(1000 * Math.pow(2, reconnectAttempt), MAX_RECONNECT_DELAY)
+  reconnectAttempt++
+  setConn('connecting')
+  const p = document.createElement('p')
+  p.className = 'chat-empty reconnect'
+  p.textContent = `Reconectando en ${Math.round(delay / 1000)}s...`
+  messagesEl.appendChild(p)
+  scrollBottom()
+  reconnectTimer = setTimeout(connect, delay)
+}
+
+function appendMessage(msg, isOwn) {
+  const div = document.createElement('div')
+  div.className = `msg ${isOwn ? 'msg-own' : ''}`
+  const time = new Date(msg.timestamp)
+  const now = new Date()
+  const isToday = time.toDateString() === now.toDateString()
+  const timeStr = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  const dateStr = isToday ? '' : time.toLocaleDateString([], { day: 'numeric', month: 'short' })
+
+  const lastMsg = messagesEl.lastElementChild
+  const sameUser = lastMsg && lastMsg.querySelector('.msg-user')?.textContent === (msg.username || 'Alguien')
+  const timeDiff = lastMsg && lastMsg.dataset.time ? Math.abs(time.getTime() - parseInt(lastMsg.dataset.time)) : Infinity
+  const showHead = !sameUser || timeDiff > 300000
+
+  if (showHead) {
+    div.innerHTML = `
+      <div class="msg-head">
+        <span class="msg-user">${msg.username || 'Alguien'}</span>
+        <span class="msg-time">${dateStr ? dateStr + ' · ' : ''}${timeStr}</span>
+      </div>
+      <div class="msg-body">${escapeHtml(msg.content)}</div>
+    `
+  } else {
+    div.innerHTML = `<div class="msg-body">${escapeHtml(msg.content)}</div>`
+  }
+  div.dataset.time = time.getTime()
+  messagesEl.appendChild(div)
+  scrollBottom()
+}
+
+function appendSystem(text) {
+  const div = document.createElement('div')
+  div.className = 'msg-system'
+  const icon = text.includes('sentó') ? '🪑' : text.includes('levantó') ? '🚶' : '·'
+  div.textContent = `${icon} ${text}`
+  messagesEl.appendChild(div)
+  scrollBottom()
+}
+
+function escapeHtml(text) {
+  const d = document.createElement('div')
+  d.textContent = text
+  return d.innerHTML
+}
+
+let typingTimeouts = {}
+
+function showTyping(payload) {
+  if (payload.username === username) return
+  typingTimeouts[payload.client_id] = Date.now()
+  renderTyping()
+}
+
+function renderTyping() {
+  const now = Date.now()
+  for (const id in typingTimeouts) {
+    if (now - typingTimeouts[id] > 3000) {
+      delete typingTimeouts[id]
+    }
+  }
+  const names = Object.values(typingTimeouts).length
+  typingEl.textContent = names === 0 ? '' : 'Alguien está escribiendo...'
+}
+
+setInterval(renderTyping, 1000)
+
+function send() {
+  const text = msgInput.value.trim()
+  if (!text || !ws || ws.readyState !== WebSocket.OPEN) return
+  ws.send(JSON.stringify({ type: 'message', payload: { content: text } }))
+  msgInput.value = ''
+  msgInput.focus()
+}
+
+sendBtn.onclick = send
+msgInput.onkeydown = (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault()
+    send()
+  }
+}
+
+// ── Invite agent ──
+inviteBtn.onclick = () => {
+  invitePanel.style.display = invitePanel.style.display === 'none' ? '' : 'none'
+}
+
+inviteAgentBtn.onclick = () => {
+  const name = agentNameInput.value.trim() || 'Eco'
+  postJSON(`/api/bancas/${bancaId}/agents`, { backend: 'echo', name })
+    .then(() => { invitePanel.style.display = 'none' })
+    .catch(err => console.error('agent invite failed', err))
+}
+
+msgInput.oninput = () => {
+  const now = Date.now()
+  if (now - lastTypingSent > 2000 && ws && ws.readyState === WebSocket.OPEN) {
+    lastTypingSent = now
+    ws.send(JSON.stringify({ type: 'typing', payload: {} }))
+  }
+}
+
+window.addEventListener('beforeunload', () => {
+  intentionalClose = true
+  if (ws) ws.close()
+})
+</script>
+
+<style>
+  .chat-page {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 5rem);
+    position: relative;
+  }
+
+  /* ── Header ── */
+  .chat-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--stone-dark);
+    flex-shrink: 0;
+  }
+  .chat-back {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .chat-back:hover { color: var(--green-700); text-decoration: none; }
+  .chat-header-info { flex: 1; min-width: 0; }
+  .chat-title {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    font-weight: 400;
+    font-variation-settings: 'opsz' 14;
+    color: var(--green-900);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: -0.01em;
+  }
+  .chat-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 0.1rem;
+  }
+  .conn-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    transition: background 0.3s;
+  }
+  .conn-connected { background: var(--green-500); }
+  .conn-connecting { background: #f59e0b; animation: pulse-dot 1s ease-in-out infinite; }
+  .conn-disconnected { background: #ef4444; }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+  }
+
+  /* ── Join ── */
+  .chat-join {
+    padding: 1.25rem 0 0.5rem;
+    flex-shrink: 0;
+  }
+  .chat-join-label {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    margin-bottom: 0.6rem;
+  }
+  .chat-join-row {
+    display: flex;
+    gap: 0.5rem;
+  }
+  .chat-join-row input { flex: 1; }
+
+  /* ── Messages ── */
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.75rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    scroll-behavior: smooth;
+  }
+  .chat-connecting {
+    text-align: center;
+    color: var(--text-muted);
+    padding: 2rem 0;
+    font-size: 0.88rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+  .chat-empty {
+    text-align: center;
+    color: var(--text-muted);
+    padding: 2rem 0;
+    font-size: 0.88rem;
+    font-style: italic;
+  }
+  .chat-empty.reconnect { color: #f59e0b; font-size: 0.78rem; padding: 0.5rem 0; font-style: normal; }
+
+  .dot-pulse {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--green-500);
+    animation: dot-pulse 1.2s ease-in-out infinite;
+  }
+  @keyframes dot-pulse {
+    0%, 100% { opacity: 0.3; transform: scale(0.8); }
+    50% { opacity: 1; transform: scale(1.1); }
+  }
+
+  .typing-indicator {
+    height: 1.4rem;
+    font-size: 0.75rem;
+    color: var(--text-light);
+    font-style: italic;
+    padding: 0 0.25rem;
+    flex-shrink: 0;
+  }
+
+  /* ── Messages ── */
+  .msg {
+    animation: msg-in 0.2s ease-out both;
+    max-width: 80%;
+    align-self: flex-start;
+  }
+  @keyframes msg-in {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .msg-own { align-self: flex-end; }
+  .msg-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.45rem;
+    margin-bottom: 0.15rem;
+    padding: 0 0.6rem;
+  }
+  .msg-user {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--green-700);
+  }
+  .msg-own .msg-user { color: var(--wood-dark); }
+  .msg-time {
+    font-size: 0.62rem;
+    color: var(--text-light);
+  }
+  .msg-body {
+    background: var(--white);
+    padding: 0.5rem 0.8rem;
+    border-radius: 12px;
+    border-bottom-left-radius: 4px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    border: 1px solid var(--stone-dark);
+    word-wrap: break-word;
+    color: var(--text);
+  }
+  .msg-own .msg-body {
+    background: var(--green-100);
+    border-color: transparent;
+    color: var(--green-900);
+    border-radius: 12px;
+    border-bottom-right-radius: 4px;
+    border-bottom-left-radius: 12px;
+  }
+
+  /* ── Input area ── */
+  .chat-input-area {
+    display: none;
+    gap: 0.5rem;
+    padding: 0.75rem 0;
+    border-top: 1px solid var(--stone-dark);
+    flex-shrink: 0;
+  }
+  .chat-input-area input { flex: 1; }
+  .send-btn {
+    padding: 0.7rem 1.1rem;
+    font-size: 1rem;
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 520px) {
+    .chat-page { height: calc(100vh - 4.5rem); }
+    .msg { max-width: 88%; }
+    .chat-title { font-size: 0.92rem; }
+  }
+  /* ── Invite panel ── */
+  .chat-header-actions { flex-shrink: 0; margin-left: auto; }
+  .invite-panel {
+    padding: 0.6rem 0 0.25rem;
+    flex-shrink: 0;
+  }
+  .invite-panel-inner {
+    background: var(--white);
+    border: 1px solid var(--stone-dark);
+    border-radius: 8px;
+    padding: 0.75rem;
+  }
+  .invite-label {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-bottom: 0.4rem;
+  }
+  .invite-row {
+    display: flex;
+    gap: 0.4rem;
+  }
+  .invite-row input { flex: 1; min-width: 0; }
+  .invite-hint {
+    font-size: 0.7rem;
+    color: var(--text-light);
+    margin-top: 0.4rem;
+  }
+
+  /* ── System message ── */
+  .msg-system {
+    text-align: center;
+    font-size: 0.72rem;
+    color: var(--text-light);
+    padding: 0.4rem 0;
+    font-style: italic;
+    animation: msg-in 0.3s ease-out both;
+  }
+
+  .btn-sm {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.78rem;
+    white-space: nowrap;
+  }
+
+  @media (min-width: 768px) {
+    .msg { max-width: 68%; }
+  }
+</style>

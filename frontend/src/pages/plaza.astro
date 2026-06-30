@@ -1,0 +1,303 @@
+---
+import Base from '../layouts/Base.astro'
+---
+
+<Base title="Plaza — bancas">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Plaza — bancas",
+    "description": "Lista de bancas activas en la plaza. Elige una y siéntate a conversar."
+  }
+  </script>
+  <main>
+    <div class="header">
+      <h2 class="header-title">Bancas</h2>
+      <button id="newBancaBtn" class="btn">+ Nueva banca</button>
+    </div>
+
+    <div id="bancaForm" class="form-card">
+      <input id="bancaTitle" type="text" placeholder="¿De qué quieres conversar?" autocomplete="off">
+      <div class="form-actions">
+        <button id="createBancaBtn" class="btn">Crear banca</button>
+        <button id="cancelBancaBtn" class="btn btn-secondary">Cancelar</button>
+      </div>
+    </div>
+
+    <div id="bancaList" class="banca-list">
+      <div class="loading">Cargando bancas...</div>
+    </div>
+
+    <div id="emptyState" class="empty-state">
+      <div class="empty-bench">🪑</div>
+      <p class="empty-line1">Todavía no llega nadie.</p>
+      <p class="empty-line2">Disfruta el silencio.</p>
+      <p class="empty-line3">Alguien podría sentarse en cualquier momento.</p>
+    </div>
+  </main>
+</Base>
+
+<script>
+import { fetchJSON, postJSON } from '../lib/api.ts'
+
+const list = document.getElementById('bancaList')
+const empty = document.getElementById('emptyState')
+const form = document.getElementById('bancaForm')
+const titleInput = document.getElementById('bancaTitle')
+
+function seatDots(count) {
+  const total = Math.max(count, 1)
+  const show = Math.min(total, 6)
+  const dots = Array.from({ length: show }, (_, i) =>
+    `<span class="seat-dot${i < count ? ' occupied' : ''}"></span>`
+  ).join('')
+  const extra = count > 6 ? `<span class="seat-extra">+${count - 6}</span>` : ''
+  return dots + extra
+}
+
+async function load() {
+  try {
+    const bancas = await fetchJSON('/api/bancas')
+    if (bancas.length === 0) {
+      list.innerHTML = ''
+      empty.style.display = 'block'
+      return
+    }
+    empty.style.display = 'none'
+    updateList(bancas)
+  } catch (e) {
+    list.innerHTML = '<p class="error-msg">Error al cargar bancas</p>'
+  }
+}
+
+function updateList(bancas) {
+  list.innerHTML = bancas.map(b => `
+    <a href="/banca?id=${b.id}" class="banca-card">
+      <div class="banca-wood"></div>
+      <div class="banca-body">
+        <strong class="banca-title">${b.title}</strong>
+        <div class="banca-seats" title="${b.users} ${b.users === 1 ? 'persona' : 'personas'} sentada${b.users === 1 ? '' : 's'}">
+          ${seatDots(b.users)}
+          <span class="banca-meta">${b.users} ${b.users === 1 ? 'persona' : 'personas'}</span>
+        </div>
+      </div>
+      <span class="banca-arrow">→</span>
+    </a>
+  `).join('')
+}
+
+load()
+setInterval(load, 5000)
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && form.classList.contains('visible')) {
+    form.classList.remove('visible')
+    titleInput.value = ''
+  }
+})
+
+document.getElementById('newBancaBtn').onclick = () => {
+  form.classList.add('visible')
+  titleInput.focus()
+}
+document.getElementById('cancelBancaBtn').onclick = () => {
+  form.classList.remove('visible')
+  titleInput.value = ''
+}
+document.getElementById('createBancaBtn').onclick = async () => {
+  const t = titleInput.value.trim()
+  if (!t) return
+  const btn = document.getElementById('createBancaBtn')
+  btn.textContent = 'Creando...'
+  btn.disabled = true
+  try {
+    const banca = await postJSON('/api/bancas', { title: t })
+    window.location.href = `/banca?id=${banca.id}`
+  } catch (e) {
+    btn.textContent = 'Crear banca'
+    btn.disabled = false
+    if (window.showToast) window.showToast('Error al crear banca', 'error')
+  }
+}
+</script>
+
+<style>
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+  }
+  .header-title {
+    font-family: var(--font-display);
+    font-size: 1.4rem;
+    font-weight: 400;
+    font-variation-settings: 'opsz' 20;
+    color: var(--green-900);
+    letter-spacing: -0.01em;
+  }
+
+  .form-card {
+    display: none;
+    margin-bottom: 1.25rem;
+    padding: 1rem;
+    background: var(--white);
+    border-radius: var(--radius);
+    border: 1px solid var(--stone-dark);
+    box-shadow: var(--shadow);
+    gap: 0.75rem;
+    flex-direction: column;
+  }
+  .form-card.visible { display: flex; }
+  .form-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .banca-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .loading {
+    text-align: center;
+    color: var(--text-muted);
+    padding: 2rem 0;
+    font-size: 0.88rem;
+  }
+  .error-msg {
+    text-align: center;
+    color: #991b1b;
+    padding: 1rem;
+    font-size: 0.9rem;
+  }
+
+  /* ── Banca card ── */
+  .banca-card {
+    display: flex;
+    align-items: stretch;
+    background: var(--white);
+    border-radius: var(--radius);
+    border: 1px solid var(--stone-dark);
+    overflow: hidden;
+    transition: box-shadow 0.2s, transform 0.15s, border-color 0.2s;
+    animation: card-in 0.3s ease-out both;
+    text-decoration: none;
+  }
+  .banca-card:hover {
+    box-shadow: var(--shadow-hover);
+    transform: translateY(-2px);
+    border-color: var(--wood-light);
+  }
+  @keyframes card-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .banca-card:nth-child(1) { animation-delay: 0s; }
+  .banca-card:nth-child(2) { animation-delay: 0.05s; }
+  .banca-card:nth-child(3) { animation-delay: 0.1s; }
+  .banca-card:nth-child(4) { animation-delay: 0.15s; }
+
+  .banca-wood {
+    width: 5px;
+    flex-shrink: 0;
+    background: linear-gradient(to bottom, var(--wood), var(--wood-dark));
+  }
+  .banca-body {
+    flex: 1;
+    padding: 0.9rem 0.9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  .banca-title {
+    font-size: 0.93rem;
+    font-weight: 600;
+    color: var(--green-900);
+    line-height: 1.3;
+  }
+
+  /* ── Seat dots (signature element) ── */
+  .banca-seats {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+  .seat-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    border: 1.5px solid var(--stone-dark);
+    flex-shrink: 0;
+    transition: background 0.3s, border-color 0.3s;
+  }
+  .seat-dot.occupied {
+    background: var(--green-500);
+    border-color: var(--green-500);
+  }
+  .seat-extra {
+    font-size: 0.7rem;
+    color: var(--text-light);
+    font-weight: 600;
+  }
+  .banca-meta {
+    font-size: 0.75rem;
+    color: var(--text-light);
+    margin-left: 0.1rem;
+  }
+
+  .banca-arrow {
+    display: flex;
+    align-items: center;
+    padding: 0 1rem 0 0.5rem;
+    color: var(--text-light);
+    font-size: 1rem;
+    transition: transform 0.2s, color 0.2s;
+    flex-shrink: 0;
+  }
+  .banca-card:hover .banca-arrow {
+    transform: translateX(4px);
+    color: var(--green-700);
+  }
+
+  /* ── Empty state ── */
+  .empty-state {
+    display: none;
+    text-align: center;
+    padding: 4rem 0;
+  }
+  .empty-bench {
+    font-size: 3.5rem;
+    line-height: 1;
+    margin-bottom: 1.5rem;
+    animation: pulse-bench 2.5s ease-in-out infinite;
+  }
+  @keyframes pulse-bench {
+    0%, 100% { transform: scale(1); opacity: 0.8; }
+    50% { transform: scale(1.04); opacity: 1; }
+  }
+  .empty-line1 {
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 400;
+    font-variation-settings: 'opsz' 18;
+    color: var(--green-900);
+    margin-bottom: 0.3rem;
+  }
+  .empty-line2 {
+    font-size: 0.95rem;
+    color: var(--text-muted);
+    margin-bottom: 0.75rem;
+  }
+  .empty-line3 {
+    font-size: 0.82rem;
+    color: var(--text-light);
+    font-style: italic;
+  }
+
+  @media (max-width: 520px) {
+    .empty-state { padding: 3rem 0; }
+    .empty-bench { font-size: 2.75rem; }
+  }
+</style>

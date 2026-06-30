@@ -1,0 +1,8 @@
+title = "Mi Plaza"
+domain = "localhost"
+port = 8080
+max_users_per_bench = 33
+allow_anonymous = true
+history = false
+ads = false
+data_dir = "./data"

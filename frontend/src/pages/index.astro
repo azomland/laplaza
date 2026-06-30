@@ -1,0 +1,281 @@
+---
+import Base from '../layouts/Base.astro'
+---
+
+<Base title="Plaza — tu espacio de conversación">
+  <main>
+    <section class="hero">
+      <p class="hero-eyebrow">Una banca en internet</p>
+      <h1 class="hero-title">Tu <em>plaza</em><br>sin algoritmos.</h1>
+      <p class="hero-desc">
+        Sin feeds. Sin seguidores. Sin notificaciones para que vuelvas.
+        Solo personas sentadas en una banca, conversando.
+      </p>
+      <div class="hero-actions">
+        <a href="/plaza" class="btn">Entrar a la plaza</a>
+      </div>
+    </section>
+
+    <section class="manifesto">
+      <div class="steps">
+        <div class="step">
+          <span class="step-glyph">🌳</span>
+          <div class="step-text">
+            <strong>Entras a la plaza.</strong>
+            <span>Ves las bancas activas.</span>
+          </div>
+        </div>
+        <div class="step">
+          <span class="step-glyph">🪑</span>
+          <div class="step-text">
+            <strong>Te sientas.</strong>
+            <span>Entras a una conversación.</span>
+          </div>
+        </div>
+        <div class="step">
+          <span class="step-glyph">💬</span>
+          <div class="step-text">
+            <strong>Conversas.</strong>
+            <span>En tiempo real, con gente real.</span>
+          </div>
+        </div>
+        <div class="step">
+          <span class="step-glyph">🚶</span>
+          <div class="step-text">
+            <strong>Te levantas.</strong>
+            <span>Sin culpa. Sin rastro.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="rules">
+      <h2 class="rules-title">La regla del parque</h2>
+      <p class="rules-intro">Antes de agregar cualquier función, preguntamos:<br>
+      <em>"¿Esto existiría en una plaza de verdad?"</em></p>
+      <div class="rules-columns">
+        <div class="rules-col">
+          <p class="rules-col-label">Hay en Plaza</p>
+          <ul class="rules-list rules-yes">
+            <li>Una banca donde sentarse</li>
+            <li>Gente conversando</li>
+            <li>Alguien propone un tema</li>
+            <li>Levantarse e irse</li>
+          </ul>
+        </div>
+        <div class="rules-col">
+          <p class="rules-col-label">No hay</p>
+          <ul class="rules-list rules-no">
+            <li>Algoritmo que decide con quién hablas</li>
+            <li>Contador de seguidores</li>
+            <li>Feed infinito</li>
+            <li>Notificaciones para que vuelvas</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="cta-section">
+      <p class="cta-title">¿Tienes tu propio servidor?</p>
+      <pre class="install-code"><code>curl -fsSL https://getplaza.personnn.com/install.sh | bash</code></pre>
+      <p class="cta-sub">Tu propia plaza en 60 segundos.</p>
+    </section>
+  </main>
+</Base>
+
+<style>
+  /* ── Hero ── */
+  .hero {
+    text-align: center;
+    padding: 3.5rem 0 3.5rem;
+  }
+  .hero-eyebrow {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-light);
+    margin-bottom: 1.25rem;
+  }
+  .hero-title {
+    font-family: var(--font-display);
+    font-size: clamp(2.4rem, 9vw, 3.75rem);
+    font-weight: 400;
+    font-variation-settings: 'opsz' 48;
+    color: var(--green-900);
+    line-height: 1.1;
+    letter-spacing: -0.025em;
+    margin-bottom: 1.25rem;
+  }
+  .hero-title em {
+    font-style: italic;
+    font-variation-settings: 'opsz' 48;
+    color: var(--green-700);
+  }
+  .hero-desc {
+    color: var(--text-muted);
+    font-size: 1rem;
+    max-width: 380px;
+    margin: 0 auto 2rem;
+    line-height: 1.65;
+  }
+  .hero-actions {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  /* ── Steps ── */
+  .manifesto {
+    padding: 2.5rem 0;
+    border-top: 1px solid var(--stone-dark);
+  }
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .step {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--stone-dark);
+  }
+  .step:last-child { border-bottom: none; }
+  .step-glyph {
+    font-size: 1.4rem;
+    width: 2.25rem;
+    text-align: center;
+    flex-shrink: 0;
+    opacity: 0.75;
+  }
+  .step-text {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+  .step-text strong {
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--green-900);
+  }
+  .step-text span {
+    font-size: 0.88rem;
+    color: var(--text-muted);
+  }
+
+  /* ── Rules ── */
+  .rules {
+    padding: 2.5rem 0;
+    border-top: 1px solid var(--stone-dark);
+  }
+  .rules-title {
+    font-family: var(--font-display);
+    font-size: 1.35rem;
+    font-weight: 400;
+    font-variation-settings: 'opsz' 20;
+    color: var(--green-900);
+    margin-bottom: 0.5rem;
+    letter-spacing: -0.01em;
+  }
+  .rules-intro {
+    color: var(--text-muted);
+    font-size: 0.88rem;
+    margin-bottom: 1.75rem;
+    line-height: 1.6;
+  }
+  .rules-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+  }
+  .rules-col-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 0.75rem;
+  }
+  .rules-yes .rules-col-label, .rules-col:first-child .rules-col-label {
+    color: var(--green-700);
+  }
+  .rules-no .rules-col-label, .rules-col:last-child .rules-col-label {
+    color: var(--text-light);
+  }
+  .rules-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .rules-list li {
+    font-size: 0.85rem;
+    line-height: 1.4;
+    padding-left: 1.1rem;
+    position: relative;
+  }
+  .rules-yes li {
+    color: var(--green-900);
+  }
+  .rules-yes li::before {
+    content: '·';
+    position: absolute;
+    left: 0;
+    color: var(--green-500);
+    font-weight: 700;
+  }
+  .rules-no li {
+    color: var(--text-muted);
+    text-decoration: line-through;
+    text-decoration-color: var(--stone-dark);
+  }
+  .rules-no li::before {
+    content: '·';
+    position: absolute;
+    left: 0;
+    color: var(--stone-dark);
+    font-weight: 700;
+  }
+
+  /* ── CTA ── */
+  .cta-section {
+    padding: 2.75rem 0 0.5rem;
+    text-align: center;
+    border-top: 1px solid var(--stone-dark);
+  }
+  .cta-title {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    font-weight: 400;
+    font-variation-settings: 'opsz' 16;
+    color: var(--green-900);
+    margin-bottom: 1rem;
+    letter-spacing: -0.01em;
+  }
+  .install-code {
+    background: var(--green-900);
+    color: #b8dfc8;
+    padding: 0.85rem 1.25rem;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    overflow-x: auto;
+    margin-bottom: 0.75rem;
+    white-space: pre-wrap;
+    word-break: break-all;
+    text-align: left;
+  }
+  .cta-sub {
+    color: var(--text-light);
+    font-size: 0.82rem;
+  }
+
+  @media (max-width: 520px) {
+    .hero { padding: 2.25rem 0 2.5rem; }
+    .hero-title { font-size: clamp(2rem, 11vw, 2.4rem); }
+    .rules-columns { grid-template-columns: 1fr; gap: 1.5rem; }
+  }
+</style>
